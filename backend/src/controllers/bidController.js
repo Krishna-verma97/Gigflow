@@ -58,3 +58,53 @@ export const getBidsForGig = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// HIRE FREELANCER (CLIENT)
+export const hireBid = async (req, res) => {
+  try {
+    const { gigId, bidId } = req.params;
+
+    // 1. Find gig
+    const gig = await Gig.findById(gigId);
+    if (!gig) {
+      return res.status(404).json({ message: "Gig not found" });
+    }
+
+    // 2. Only owner can hire
+    if (gig.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to hire" });
+    }
+
+    // 3. Prevent double hiring
+    if (gig.status === "assigned") {
+      return res.status(400).json({ message: "Gig already assigned" });
+    }
+
+    // 4. Find selected bid
+    const selectedBid = await Bid.findById(bidId);
+    if (!selectedBid) {
+      return res.status(404).json({ message: "Bid not found" });
+    }
+
+    // 5. Update gig status
+    gig.status = "assigned";
+    await gig.save();
+
+    // 6. Update bids
+    await Bid.updateMany(
+      { gig: gigId },
+      { status: "rejected" }
+    );
+
+    selectedBid.status = "hired";
+    await selectedBid.save();
+
+    res.json({
+      message: "Freelancer hired successfully",
+      hiredBid: selectedBid,
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
