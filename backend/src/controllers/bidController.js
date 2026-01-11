@@ -1,0 +1,60 @@
+import Bid from "../models/Bid.js";
+import Gig from "../models/Gig.js";
+
+// SUBMIT BID (Freelancer)
+export const submitBid = async (req, res) => {
+  try {
+    const { amount, message } = req.body;
+    const gigId = req.params.gigId;
+
+    if (!amount || !message) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const gig = await Gig.findById(gigId);
+    if (!gig || gig.status !== "open") {
+      return res.status(400).json({ message: "Gig not available" });
+    }
+
+    // Prevent owner from bidding on own gig
+    if (gig.owner.toString() === req.user._id.toString()) {
+      return res.status(403).json({ message: "You cannot bid on your own gig" });
+    }
+
+    const bid = await Bid.create({
+      gig: gigId,
+      freelancer: req.user._id,
+      amount,
+      message,
+    });
+
+    res.status(201).json(bid);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// VIEW BIDS (ONLY GIG OWNER)
+export const getBidsForGig = async (req, res) => {
+  try {
+    const gigId = req.params.gigId;
+
+    const gig = await Gig.findById(gigId);
+    if (!gig) {
+      return res.status(404).json({ message: "Gig not found" });
+    }
+
+    // Owner check
+    if (gig.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const bids = await Bid.find({ gig: gigId })
+      .populate("freelancer", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(bids);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
