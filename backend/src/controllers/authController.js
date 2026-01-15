@@ -2,7 +2,6 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-
 // REGISTER
 export const registerUser = async (req, res) => {
   try {
@@ -66,16 +65,14 @@ export const loginUser = async (req, res) => {
     }
 
     // 4. Create JWT
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     // 5. Send token in HttpOnly cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false, // true in production (https)
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -94,10 +91,9 @@ export const loginUser = async (req, res) => {
 };
 
 export const logoutUser = (req, res) => {
-  res.cookie("token", "", {
+  res.clearCookie("token", {
     httpOnly: true,
-    expires: new Date(0),
+    sameSite: "lax",
   });
   res.json({ message: "Logged out successfully" });
 };
-
